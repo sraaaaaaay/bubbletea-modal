@@ -27,11 +27,11 @@ func dialogContent() string {
 
 // Create model (e.g. during parent initialisation), as you would with a text input or viewport
 modal := modal.New(
-	lipgloss.Center, // Horizontal and vertical positioning
+	lipgloss.Center, // Horizontal and vertical positioning.
 	lipgloss.Center, 
 	dialogContent, // Function handle to dialog content.
 	func() tea.Msg { return modal.ConfirmMsg },
-	func() tea.Msg { return tea.QuitMsg }, 
+	nil,  // Extra behaviour if the user decides not to quit!
 )
 
 // ... then respond to a "Y" keypress
