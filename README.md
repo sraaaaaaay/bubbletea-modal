@@ -1,6 +1,12 @@
 # bubbletea-modal
 
-A modal component that can be used to create dialogs and popups in your terminal applications. Targets v1 of Lipgloss and Bubble Tea (before the introduction of the compositing API).
+![example of dialog popup](./example.gif)
+
+A modal component that can be used to create dialogs and popups in your TUI.
+
+## Versions
+- **bubbletea-modal (v1)**: Lipgloss/Bubble Tea v1 (before the Compositing API)
+- **bubbletea-modal/v2**: Lipgloss/Bubble Tea v2 (uses `lipgloss.NewLayer()`)
 
 ## Features
 - **Satisfies `tea.Model`**: familiar API for initialisation and updates.
@@ -9,7 +15,7 @@ A modal component that can be used to create dialogs and popups in your terminal
 - **Stackable**: `modal.Model` accepts the View() of other `modal.Model` as a background.
 - **OSC-8 support**: "non-typical" sequences such as OSC-8 URLs are supported.
 
-## Usage
+## Usage Example
 ```go
 func dialogContent() string {
 	message := lipgloss.NewStyle().Margin(2).PaddingBottom(2).Render("Are you sure you want to quit?")
@@ -44,4 +50,6 @@ m.modal.Open(parentModel.View())
 - The default `onConfirm()` behaviour is to return nil. The default `onClose()` behaviour is to close (stop displaying the modal) and return nil (this is often enough for most uses, but is left open to more complex behaviour).
 
 ## Roadmap
-- v2 using Lipgloss Layers API.
+- Finer control over hotkeys - allow other keys than Y/N.
+- Finer control over positioning - expose x/y translation 
+- Mouse events (e.g. click outside -> close the dialog)
