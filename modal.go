@@ -200,7 +200,7 @@ func (tc *TerminalCell) Rebuild() string {
 		style = style.Foreground(lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", tc.Style.FgR, tc.Style.FgG, tc.Style.FgB)))
 	}
 
-	switch tc.Style.FgColourMode {
+	switch tc.Style.BgColourMode {
 	case ColourBasic, Colour256:
 		if tc.Style.BgColour != nil {
 			style = style.Background(lipgloss.Color(strconv.Itoa(*tc.Style.BgColour)))
