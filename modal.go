@@ -11,17 +11,23 @@ import (
 )
 
 type Model struct {
-	HPos lipgloss.Position
-	VPos lipgloss.Position
+	HPos       lipgloss.Position
+	VPos       lipgloss.Position
+	Foreground func() string
 
+	confirmKey string
+	cancelKey  string
+
+	onConfirm tea.Cmd
+	onCancel  tea.Cmd
+
+	background      string
+	isOpen          bool
 	containerWidth  int
 	containerHeight int
-	Foreground      func() string
-	onConfirm       func() tea.Msg
-	onCancel        func() tea.Msg
-	background      string
-	open            bool
 }
+
+type Option func(*Model)
 
 type OpenedMsg struct{}
 type ConfirmMsg struct{}
@@ -65,36 +71,75 @@ const (
 	Osc8Terminator    = '\a'
 )
 
-func defaultCmd() tea.Msg {
-	return nil
-}
-
-func New(hPos, vPos lipgloss.Position, fg func() string, onConfirm func() tea.Msg, onCancel func() tea.Msg) (m Model) {
-	m.Foreground = fg
-	m.HPos = hPos
-	m.VPos = vPos
-
-	if onConfirm != nil {
-		m.onConfirm = onConfirm
-	} else {
-		m.onConfirm = defaultCmd
+// Creates a new modal.
+func New(opts ...Option) Model {
+	m := Model{
+		HPos:       lipgloss.Center,
+		VPos:       lipgloss.Center,
+		Foreground: func() string { return "" },
+		onConfirm:  func() tea.Msg { return nil },
+		onCancel:   func() tea.Msg { return nil },
+		confirmKey: "Y",
+		cancelKey:  "N",
 	}
 
-	if onCancel != nil {
-		m.onCancel = onCancel
-	} else {
-		m.onCancel = defaultCmd
+	for _, opt := range opts {
+		opt(&m)
 	}
 
 	return m
 }
 
+// Sets the horizontal and vertical position of the modal
+// within the background container.
+func WithPosition(HPos, VPos lipgloss.Position) Option {
+	return func(m *Model) {
+		m.HPos = HPos
+		m.VPos = VPos
+	}
+}
+
+// Sets the foreground (the contents) of the modal. This is
+// a function pointer, so your parent component can define
+// its appearance and content in any way you want.
+func WithForeground(fg func() string) Option {
+	return func(m *Model) {
+		m.Foreground = fg
+	}
+}
+
+// Sets the tea.Cmd to return when the dialog is
+// confirmed (when confirmKey) is pressed.
+func WithConfirmCmd(cmd tea.Cmd) Option {
+	return func(m *Model) {
+		m.onConfirm = cmd
+	}
+}
+
+// Sets the tea.Cmd to return when the dialog is
+// canceled (when cancelKey) is pressed. The dialog
+// will close itself automatically, but all other
+// behaviour is left to the user.
+func WithCancelCmd(cmd tea.Cmd) Option {
+	return func(m *Model) {
+		m.onCancel = cmd
+	}
+}
+
+// Sets the keymap for confirm/cancel behaviour.
+func WithKeyMap(confirm string, cancel string) Option {
+	return func(m *Model) {
+		m.confirmKey = confirm
+		m.cancelKey = cancel
+	}
+}
+
 func (m Model) Opened() bool {
-	return m.open
+	return m.isOpen
 }
 
 func (m *Model) Open(background string) tea.Msg {
-	m.open = true
+	m.isOpen = true
 	m.background = background
 
 	m.containerWidth = lipgloss.Width(background)
@@ -103,7 +148,7 @@ func (m *Model) Open(background string) tea.Msg {
 }
 
 func (m *Model) Close() {
-	m.open = false
+	m.isOpen = false
 }
 
 func (m Model) Init() tea.Cmd {
@@ -114,10 +159,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "Y", "enter":
+		case m.confirmKey:
 			return m, m.onConfirm
 
-		case "N", "esc":
+		case m.cancelKey:
 			m.Close()
 			return m, m.onCancel
 		}
@@ -127,7 +172,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	if !m.open {
+	if !m.isOpen {
 		return ""
 	}
 

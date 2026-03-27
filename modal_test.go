@@ -248,7 +248,11 @@ func Test_Modal_Displays_AsExpected(t *testing.T) {
 	foreground := func() string { return "1234" }
 
 	// Act
-	dialog := New(lipgloss.Center, lipgloss.Center, foreground, nil, nil)
+	dialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(foreground),
+	)
+
 	dialog.Open(background)
 
 	// Assert
@@ -265,8 +269,15 @@ func Test_StackedModal_Displays_AsExpected(t *testing.T) {
 	stackedForeground := func() string { return "99" }
 
 	// Act
-	dialog := New(lipgloss.Center, lipgloss.Center, foreground, nil, nil)
-	stackedDialog := New(lipgloss.Center, lipgloss.Center, stackedForeground, nil, nil)
+	dialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(foreground),
+	)
+
+	stackedDialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(stackedForeground),
+	)
 
 	dialog.Open(background)
 	stackedDialog.Open(dialog.View())
@@ -276,18 +287,26 @@ func Test_StackedModal_Displays_AsExpected(t *testing.T) {
 	assertEqual(t, stackedDialog.View(), expectedStackedModalDisplay)
 }
 
-func Test_Modal_RespondsTo_ConfirmHandler(t *testing.T) {
+func Test_Modal_RespondsTo_DefaultConfirmKey(t *testing.T) {
 	// Arrange
 	onConfirmHandler := func() tea.Msg {
 		return ConfirmMsg{}
 	}
 
-	modal := New(lipgloss.Center, lipgloss.Center, func() string { return "1" }, onConfirmHandler, nil)
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() string { return "1" }),
+		WithConfirmCmd(onConfirmHandler),
+	)
 
 	// Act
 	modal.Open("000")
 	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("Y")})
-	msg := cmd()
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
 	_, ok := msg.(ConfirmMsg)
 
 	// Assert
@@ -295,21 +314,106 @@ func Test_Modal_RespondsTo_ConfirmHandler(t *testing.T) {
 	assertEqual(t, updated.(Model).Opened(), true)
 }
 
-func Test_Modal_RespondsTo_CloseHandler(t *testing.T) {
+func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
+	// Arrange
+	onConfirmHandler := func() tea.Msg {
+		return ConfirmMsg{}
+	}
+
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() string { return "1" }),
+		WithKeyMap("enter", "N"), // Keep using "N" (default) for close
+		WithConfirmCmd(onConfirmHandler),
+	)
+
+	// Act
+	modal.Open("000")
+	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter")})
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
+	_, ok := msg.(ConfirmMsg)
+
+	// Assert
+	assertEqual(t, ok, true)
+	assertEqual(t, updated.(Model).Opened(), true)
+}
+
+func Test_Modal_RespondsTo_DefaultCancelKey(t *testing.T) {
 	// Arrange
 	onCloseHandler := func() tea.Msg {
 		return CloseMsg{}
 	}
 
-	modal := New(lipgloss.Center, lipgloss.Center, func() string { return "1" }, nil, onCloseHandler)
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() string { return "1" }),
+		WithCancelCmd(onCloseHandler),
+	)
 
 	// Act
 	modal.Open("000")
 	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("N")})
-	msg := cmd()
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
 	_, ok := msg.(CloseMsg)
 
 	// Assert
 	assertEqual(t, ok, true)
 	assertEqual(t, updated.(Model).Opened(), false)
+}
+
+func Test_Modal_RespondsTo_CustomCancelKey(t *testing.T) {
+	// Arrange
+	onCloseHandler := func() tea.Msg {
+		return CloseMsg{}
+	}
+
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() string { return "1" }),
+		WithKeyMap("Y", "esc"), // keep Y default
+		WithCancelCmd(onCloseHandler),
+	)
+
+	// Act
+	modal.Open("000")
+	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("esc")})
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
+	_, ok := msg.(CloseMsg)
+
+	// Assert
+	assertEqual(t, ok, true)
+	assertEqual(t, updated.(Model).Opened(), false)
+}
+
+func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
+	// Arrange
+	onCloseHandler := func() tea.Msg {
+		return CloseMsg{}
+	}
+
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() string { return "1" }),
+		WithKeyMap("enter", "esc"),
+		WithCancelCmd(onCloseHandler),
+	)
+
+	// Act
+	modal.Open("000")
+	_, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ctrl+q")})
+
+	// Assert
+	assertEqual(t, cmd == nil, true)
 }

@@ -22,7 +22,11 @@ func Test_OddWidthModalPosition_Displays_AsExpected(t *testing.T) {
 	foreground := func() tea.View { return tea.View{Content: "1234"} }
 
 	// Act
-	dialog := New(lipgloss.Center, lipgloss.Center, foreground, nil, nil)
+	dialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(foreground),
+	)
+
 	dialog.Open(tea.View{Content: background})
 
 	// Assert
@@ -37,7 +41,11 @@ func Test_EvenWidthModalPosition_Displays_AsExpected(t *testing.T) {
 	foreground := func() tea.View { return tea.View{Content: "1234"} }
 
 	// Act
-	dialog := New(lipgloss.Center, lipgloss.Center, foreground, nil, nil)
+	dialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(foreground),
+	)
+
 	dialog.Open(tea.View{Content: background})
 
 	// Assert
@@ -54,8 +62,15 @@ func Test_StackedModal_Displays_AsExpected(t *testing.T) {
 	stackedForeground := func() tea.View { return tea.View{Content: "99"} }
 
 	// Act
-	dialog := New(lipgloss.Center, lipgloss.Center, foreground, nil, nil)
-	stackedDialog := New(lipgloss.Center, lipgloss.Center, stackedForeground, nil, nil)
+	dialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(foreground),
+	)
+
+	stackedDialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(stackedForeground),
+	)
 
 	dialog.Open(tea.View{Content: background})
 	stackedDialog.Open(dialog.View())
@@ -65,19 +80,27 @@ func Test_StackedModal_Displays_AsExpected(t *testing.T) {
 	assertEqual(t, stackedDialog.View().Content, expectedStackedModalDisplay)
 }
 
-func Test_Modal_RespondsTo_ConfirmHandler(t *testing.T) {
+func Test_Modal_RespondsTo_DefaultConfirmKey(t *testing.T) {
 	// Arrange
 	onConfirmHandler := func() tea.Msg {
 		return ConfirmMsg{}
 	}
 
-	modal := New(lipgloss.Center, lipgloss.Center, func() tea.View { return tea.View{Content: "1"} }, onConfirmHandler, nil)
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() tea.View { return tea.View{Content: "1"} }),
+		WithConfirmCmd(onConfirmHandler),
+	)
 
 	// Act
 	modal.Open(tea.View{Content: "000"})
 
 	updated, cmd := modal.Update(tea.KeyPressMsg{Code: 'Y'})
-	msg := cmd()
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
 	_, ok := msg.(ConfirmMsg)
 
 	// Assert
@@ -85,21 +108,108 @@ func Test_Modal_RespondsTo_ConfirmHandler(t *testing.T) {
 	assertEqual(t, updated.(Model).Opened(), true)
 }
 
-func Test_Modal_RespondsTo_CloseHandler(t *testing.T) {
+func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
+	// Arrange
+	onConfirmHandler := func() tea.Msg {
+		return ConfirmMsg{}
+	}
+
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() tea.View { return tea.View{Content: "1"} }),
+		WithKeyMap("enter", "N"), // Keep N default
+		WithConfirmCmd(onConfirmHandler),
+	)
+
+	// Act
+	modal.Open(tea.View{Content: "000"})
+
+	updated, cmd := modal.Update(tea.KeyPressMsg{Text: "enter"})
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
+
+	_, ok := msg.(ConfirmMsg)
+
+	// Assert
+	assertEqual(t, ok, true)
+	assertEqual(t, updated.(Model).Opened(), true)
+}
+
+func Test_Modal_RespondsTo_DefaultCloseKey(t *testing.T) {
 	// Arrange
 	onCloseHandler := func() tea.Msg {
 		return CloseMsg{}
 	}
 
-	modal := New(lipgloss.Center, lipgloss.Center, func() tea.View { return tea.View{Content: "1"} }, nil, onCloseHandler)
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() tea.View { return tea.View{Content: "1"} }),
+		WithCancelCmd(onCloseHandler),
+	)
 
 	// Act
 	modal.Open(tea.View{Content: "000"})
 	updated, cmd := modal.Update(tea.KeyPressMsg{Code: 'N'})
-	msg := cmd()
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
 	_, ok := msg.(CloseMsg)
 
 	// Assert
 	assertEqual(t, ok, true)
 	assertEqual(t, updated.(Model).Opened(), false)
+}
+
+func Test_Modal_RespondsTo_CustomCloseKey(t *testing.T) {
+	// Arrange
+	onCloseHandler := func() tea.Msg {
+		return CloseMsg{}
+	}
+
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() tea.View { return tea.View{Content: "1"} }),
+		WithKeyMap("Y", "esc"), // Keep Y default
+		WithCancelCmd(onCloseHandler),
+	)
+
+	// Act
+	modal.Open(tea.View{Content: "000"})
+	updated, cmd := modal.Update(tea.KeyPressMsg{Text: "esc"})
+
+	var msg tea.Msg
+	if cmd != nil {
+		msg = cmd()
+	}
+	_, ok := msg.(CloseMsg)
+
+	// Assert
+	assertEqual(t, ok, true)
+	assertEqual(t, updated.(Model).Opened(), false)
+}
+
+func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
+	// Arrange
+	onCloseHandler := func() tea.Msg {
+		return CloseMsg{}
+	}
+
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() tea.View { return tea.View{Content: "1"} }),
+		WithKeyMap("enter", "esc"),
+		WithCancelCmd(onCloseHandler),
+	)
+
+	// Act
+	modal.Open(tea.View{Content: "000"})
+	_, cmd := modal.Update(tea.KeyPressMsg{Text: "ctrl+q"})
+
+	// Assert
+	assertEqual(t, cmd == nil, true)
 }
