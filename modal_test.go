@@ -15,6 +15,38 @@ func assertEqual(t *testing.T, got, want any) {
 	}
 }
 
+func Test_ReconstructedBasicColourTerminalCell_IdenticalTo_LipglossStyle(t *testing.T) {
+	// Arrange
+	fgColour := 9
+	tc := TerminalCell{
+		Rune: 'A',
+		Style: StyleState{
+			FgColourMode: Colour16,
+			BgColourMode: Colour16,
+
+			FgColour: &fgColour,
+			BgColour: nil,
+
+			Bold:       true,
+			Underlined: false,
+		},
+	}
+
+	foregroundColour := lipgloss.Color("9")
+
+	correspondingLipglossStyle := lipgloss.
+		NewStyle().
+		Foreground(foregroundColour).
+		Bold(true)
+
+	// Act
+	rebuiltOutput := tc.Rebuild()
+	lipglossOutput := correspondingLipglossStyle.Render("A")
+
+	// Assert
+	assertEqual(t, rebuiltOutput, lipglossOutput)
+}
+
 func Test_ReconstructedTrueColourTerminalCell_IdenticalTo_LipglossStyle(t *testing.T) {
 	// Arrange
 	tc := TerminalCell{
@@ -91,9 +123,9 @@ func Test_ParseBasicColourAnsiParameters_Creates_ExpectedStyle(t *testing.T) {
 
 	blankStyle := StyleState{}
 	expectedStyleState := StyleState{
-		FgColourMode: ColourBasic,
+		FgColourMode: Colour16,
 		FgColour:     &fgColour,
-		BgColourMode: ColourBasic,
+		BgColourMode: Colour16,
 		BgColour:     &bgColour,
 		Underlined:   true,
 	}

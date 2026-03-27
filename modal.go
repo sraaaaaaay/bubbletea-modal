@@ -50,10 +50,10 @@ type StyleState struct {
 }
 
 const (
-	ColourNone ColourMode = iota
-	ColourBasic
-	Colour256
-	ColourTruecolour
+	ColourNone       ColourMode = iota // No ANSI escape sequence is applied
+	Colour16                           // 8 colours and 8 bright colours
+	Colour256                          // 8-bit colours
+	ColourTruecolour                   // 24-bit (hex colours)
 )
 
 const (
@@ -191,7 +191,7 @@ func (tc *TerminalCell) Rebuild() string {
 		Underline(tc.Style.Underlined)
 
 	switch tc.Style.FgColourMode {
-	case ColourBasic, Colour256:
+	case Colour16, Colour256:
 		if tc.Style.FgColour != nil {
 			style = style.Foreground(lipgloss.Color(strconv.Itoa(*tc.Style.FgColour)))
 		}
@@ -201,7 +201,7 @@ func (tc *TerminalCell) Rebuild() string {
 	}
 
 	switch tc.Style.BgColourMode {
-	case ColourBasic, Colour256:
+	case Colour16, Colour256:
 		if tc.Style.BgColour != nil {
 			style = style.Background(lipgloss.Color(strconv.Itoa(*tc.Style.BgColour)))
 		}
@@ -248,9 +248,10 @@ func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 				continue
 			}
 
-			if inputAsRunes[i+1] == AnsiCsiIntroducer {
+			switch inputAsRunes[i+1] {
+			case AnsiCsiIntroducer:
 				isAnsiCode = true
-			} else if inputAsRunes[i+1] == Osc8Introducer {
+			case Osc8Introducer:
 				isOsc8Code = true
 			}
 
@@ -328,6 +329,13 @@ func parseStyleState(style StyleState, params string) StyleState {
 		paramValues = append(paramValues, val)
 	}
 
+	// When interpolating the ANSI sequences to make coloured text,
+	// Lipgloss retains the specific "mode" the text colour was initialised
+	// in. For example the internal representation of lipgloss.Color("9")
+	// is different from lipgloss.Color("#FF0000") even if they're equivalent.
+	//
+	// This means we need to detect possible colour types based on the code ranges
+	// rather than assume it's been converted to RGB or some standard.
 	for i := 0; i < len(paramValues); i++ {
 		switch {
 		case paramValues[i] == 0:
@@ -337,8 +345,9 @@ func parseStyleState(style StyleState, params string) StyleState {
 		case paramValues[i] == 4:
 			style.Underlined = true
 
+		// Foreground colour types
 		case paramValues[i] >= 30 && paramValues[i] <= 37:
-			style.FgColourMode = ColourBasic
+			style.FgColourMode = Colour16
 			c := paramValues[i]
 			style.FgColour = &c
 
@@ -353,12 +362,11 @@ func parseStyleState(style StyleState, params string) StyleState {
 			style.FgR = paramValues[i+2]
 			style.FgG = paramValues[i+3]
 			style.FgB = paramValues[i+4]
-
 			i += 4
 
-		// Background colours (40-47, 48;5 and 48;2)
+		// Background colour types
 		case paramValues[i] >= 40 && paramValues[i] <= 47:
-			style.BgColourMode = ColourBasic
+			style.BgColourMode = Colour16
 			c := paramValues[i]
 			style.BgColour = &c
 
@@ -370,11 +378,9 @@ func parseStyleState(style StyleState, params string) StyleState {
 
 		case paramValues[i] == 48 && i+4 < len(paramValues) && paramValues[i+1] == 2:
 			style.BgColourMode = ColourTruecolour
-
 			style.BgR = paramValues[i+2]
 			style.BgG = paramValues[i+3]
 			style.BgB = paramValues[i+4]
-
 			i += 4
 		}
 	}
