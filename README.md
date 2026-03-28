@@ -31,15 +31,14 @@ func dialogContent() string {
 	return lipgloss.NewStyle.Border(lipgloss.RoundedBorder()).Render(joined)
 }
 
-// Create model (e.g. during parent initialisation), as you would with a text input or viewport
 modal := modal.New(
-	WithPosition(lipgloss.Center, lipgloss.Center), // Horizontal and vertical positioning
+	WithPosition(lipgloss.Center, lipgloss.Center),
 	WithForeground(dialogContent),
+	WithDimmedBackground(true),
 	WithKeymap("enter", "esc"),
 	WithConfirmCmd(func() tea.Msg { return modal.ConfirmMsg })
 )
 
-// ... then respond to a "Y" keypress
 m.modal.Open(parentModel.View())
 ```
 

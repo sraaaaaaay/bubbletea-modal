@@ -25,6 +25,7 @@ type Model struct {
 	isOpen          bool
 	containerWidth  int
 	containerHeight int
+	dimBackground   bool
 }
 
 type Option func(*Model)
@@ -35,32 +36,9 @@ type CloseMsg struct{}
 
 type TerminalCell struct {
 	Rune       rune
-	Style      StyleState
+	Style      lipgloss.Style
 	HasContent bool
 }
-
-type ColourMode int
-
-type StyleState struct {
-	FgColourMode ColourMode
-	BgColourMode ColourMode
-
-	FgColour      *int
-	FgR, FgG, FgB int
-
-	BgColour      *int
-	BgR, BgG, BgB int
-
-	Bold       bool
-	Underlined bool
-}
-
-const (
-	ColourNone       ColourMode = iota // No ANSI escape sequence is applied
-	Colour16                           // 8 colours and 8 bright colours
-	Colour256                          // 8-bit colours
-	ColourTruecolour                   // 24-bit (hex colours)
-)
 
 const (
 	NewlineCharacter  = 10
@@ -134,6 +112,13 @@ func WithKeyMap(confirm string, cancel string) Option {
 	}
 }
 
+// Automatically dims the background when the dialog is open.
+func WithDimmedBackground(dim bool) Option {
+	return func(m *Model) {
+		m.dimBackground = dim
+	}
+}
+
 func (m Model) Opened() bool {
 	return m.isOpen
 }
@@ -196,6 +181,21 @@ func (m *Model) Composite() string {
 	yOffset := applyPosition(m.VPos, bgHeight, fgHeight)
 	xOffset := applyPosition(m.HPos, bgWidth, fgWidth)
 
+	if m.dimBackground {
+		for rowIdx := range bgGrid {
+			for i := range bgGrid[rowIdx] {
+				isBehindForeground := rowIdx >= yOffset &&
+					rowIdx < yOffset+fgHeight &&
+					i >= xOffset &&
+					i < xOffset+fgWidth
+
+				if !isBehindForeground {
+					bgGrid[rowIdx][i].Style = bgGrid[rowIdx][i].Style.Faint(true)
+				}
+			}
+		}
+	}
+
 	for rowIdx := range fgHeight {
 		for i := xOffset; i < xOffset+lipgloss.Width(foreground); i++ {
 			fgCell := fgGrid[rowIdx][i-xOffset]
@@ -208,7 +208,9 @@ func (m *Model) Composite() string {
 	var builder strings.Builder
 	for i, row := range bgGrid {
 		for _, cell := range row {
-			builder.WriteString(cell.Rebuild())
+			builder.WriteString(
+				cell.Style.Render(string(cell.Rune)),
+			)
 		}
 		if i < len(bgGrid)-1 {
 			builder.WriteRune('\n')
@@ -230,34 +232,6 @@ func applyPosition(pos lipgloss.Position, bgDimension, fgDimension int) int {
 	}
 }
 
-func (tc *TerminalCell) Rebuild() string {
-	style := lipgloss.NewStyle().
-		Bold(tc.Style.Bold).
-		Underline(tc.Style.Underlined)
-
-	switch tc.Style.FgColourMode {
-	case Colour16, Colour256:
-		if tc.Style.FgColour != nil {
-			style = style.Foreground(lipgloss.Color(strconv.Itoa(*tc.Style.FgColour)))
-		}
-
-	case ColourTruecolour:
-		style = style.Foreground(lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", tc.Style.FgR, tc.Style.FgG, tc.Style.FgB)))
-	}
-
-	switch tc.Style.BgColourMode {
-	case Colour16, Colour256:
-		if tc.Style.BgColour != nil {
-			style = style.Background(lipgloss.Color(strconv.Itoa(*tc.Style.BgColour)))
-		}
-
-	case ColourTruecolour:
-		style = style.Background(lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", tc.Style.BgR, tc.Style.BgG, tc.Style.BgB)))
-	}
-
-	return style.Render(string(tc.Rune))
-}
-
 func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 	grid := make([][]TerminalCell, height)
 	for i := range grid {
@@ -268,7 +242,7 @@ func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 	}
 
 	currentX, currentY := 0, 0
-	currentStyle := StyleState{}
+	currentStyle := lipgloss.NewStyle()
 
 	inputAsRunes := []rune(input)
 
@@ -363,9 +337,9 @@ func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 	return grid
 }
 
-func parseStyleState(style StyleState, params string) StyleState {
+func parseStyleState(style lipgloss.Style, params string) lipgloss.Style {
 	if params == "" || params == "0" {
-		return StyleState{}
+		return lipgloss.NewStyle()
 	}
 
 	paramValues := []int{}
@@ -384,48 +358,50 @@ func parseStyleState(style StyleState, params string) StyleState {
 	for i := 0; i < len(paramValues); i++ {
 		switch {
 		case paramValues[i] == 0:
-			style = StyleState{}
+			style = lipgloss.NewStyle()
 		case paramValues[i] == 1:
-			style.Bold = true
+			style = style.Bold(true)
 		case paramValues[i] == 4:
-			style.Underlined = true
+			style = style.Underline(true)
 
 		// Foreground colour types
 		case paramValues[i] >= 30 && paramValues[i] <= 37:
-			style.FgColourMode = Colour16
-			c := paramValues[i]
-			style.FgColour = &c
+			colour := lipgloss.Color(strconv.Itoa(paramValues[i]))
+			style = style.Foreground(colour)
 
 		case paramValues[i] == 38 && i+2 < len(paramValues) && paramValues[i+1] == 5:
-			style.FgColourMode = Colour256
-			c := paramValues[i+2]
-			style.FgColour = &c
+			colour := lipgloss.Color(strconv.Itoa(paramValues[i+2]))
+			style = style.Foreground(colour)
 			i += 2
 
 		case paramValues[i] == 38 && i+4 < len(paramValues) && paramValues[i+1] == 2:
-			style.FgColourMode = ColourTruecolour
-			style.FgR = paramValues[i+2]
-			style.FgG = paramValues[i+3]
-			style.FgB = paramValues[i+4]
+			colour := fmt.Sprintf(
+				"#%02x%02x%02x",
+				paramValues[i+2],
+				paramValues[i+3],
+				paramValues[i+4],
+			)
+			style = style.Foreground(lipgloss.Color(colour))
 			i += 4
 
 		// Background colour types
 		case paramValues[i] >= 40 && paramValues[i] <= 47:
-			style.BgColourMode = Colour16
-			c := paramValues[i]
-			style.BgColour = &c
+			colour := lipgloss.Color(strconv.Itoa(paramValues[i]))
+			style = style.Background(colour)
 
 		case paramValues[i] == 48 && i+2 < len(paramValues) && paramValues[i+1] == 5:
-			style.BgColourMode = Colour256
-			c := paramValues[i+2]
-			style.BgColour = &c
+			colour := lipgloss.Color(strconv.Itoa(paramValues[i+2]))
+			style = style.Background(colour)
 			i += 2
 
 		case paramValues[i] == 48 && i+4 < len(paramValues) && paramValues[i+1] == 2:
-			style.BgColourMode = ColourTruecolour
-			style.BgR = paramValues[i+2]
-			style.BgG = paramValues[i+3]
-			style.BgB = paramValues[i+4]
+			colour := fmt.Sprintf(
+				"#%02x%02x%02x",
+				paramValues[i+2],
+				paramValues[i+3],
+				paramValues[i+4],
+			)
+			style = style.Background(lipgloss.Color(colour))
 			i += 4
 		}
 	}

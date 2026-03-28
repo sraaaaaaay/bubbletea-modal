@@ -20,6 +20,8 @@ type Model struct {
 	onCancel   func() tea.Msg
 	background tea.View
 	isOpen     bool
+
+	dimBackground bool
 }
 
 type Option func(*Model)
@@ -100,6 +102,13 @@ func WithKeyMap(confirm string, cancel string) Option {
 	}
 }
 
+// Automatically dims the background when the dialog is open.
+func WithDimmedBackground(dim bool) Option {
+	return func(m *Model) {
+		m.dimBackground = dim
+	}
+}
+
 func (m Model) Opened() bool {
 	return m.isOpen
 }
@@ -147,8 +156,12 @@ func (m Model) View() tea.View {
 
 func (m *Model) Composite() string {
 	foreground := m.Foreground()
+	background := lipgloss.
+		NewStyle().
+		Faint(m.dimBackground).
+		Render(m.background.Content)
 
-	bg := lipgloss.NewLayer(m.background.Content)
+	bg := lipgloss.NewLayer(background)
 	fg := lipgloss.
 		NewLayer(foreground.Content).
 		X(applyPosition(m.HPos, m.containerWidth, lipgloss.Width(foreground.Content))).

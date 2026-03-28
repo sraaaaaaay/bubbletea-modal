@@ -1,6 +1,7 @@
 package modal
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -15,78 +16,17 @@ func assertEqual(t *testing.T, got, want any) {
 	}
 }
 
-func Test_ReconstructedBasicColourTerminalCell_IdenticalTo_LipglossStyle(t *testing.T) {
-	// Arrange
-	fgColour := 9
-	tc := TerminalCell{
-		Rune: 'A',
-		Style: StyleState{
-			FgColourMode: Colour16,
-			BgColourMode: Colour16,
+func assertStyleEqual(t *testing.T, got, want lipgloss.Style) {
+	t.Helper()
 
-			FgColour: &fgColour,
-			BgColour: nil,
+	// Escape the colour and formatting sequences
+	// to show raw output
+	gotRaw := fmt.Sprintf("%q", got.Render("A"))
+	wantRaw := fmt.Sprintf("%q", want.Render("A"))
 
-			Bold:       true,
-			Underlined: false,
-		},
+	if gotRaw != wantRaw {
+		t.Errorf("got %v, want %v", gotRaw, wantRaw)
 	}
-
-	foregroundColour := lipgloss.Color("9")
-
-	correspondingLipglossStyle := lipgloss.
-		NewStyle().
-		Foreground(foregroundColour).
-		Bold(true)
-
-	// Act
-	rebuiltOutput := tc.Rebuild()
-	lipglossOutput := correspondingLipglossStyle.Render("A")
-
-	// Assert
-	assertEqual(t, rebuiltOutput, lipglossOutput)
-}
-
-func Test_ReconstructedTrueColourTerminalCell_IdenticalTo_LipglossStyle(t *testing.T) {
-	// Arrange
-	tc := TerminalCell{
-		Rune: 'A',
-		Style: StyleState{
-			FgColourMode: ColourTruecolour,
-			BgColourMode: ColourTruecolour,
-
-			FgColour: nil,
-			// #FF00FF - hot pink
-			FgR: 255,
-			FgG: 0,
-			FgB: 255,
-
-			BgColour: nil,
-			// #00FF00 - lime
-			BgR: 0,
-			BgG: 255,
-			BgB: 0,
-
-			Bold:       true,
-			Underlined: false,
-		},
-	}
-
-	foregroundColour := lipgloss.Color("#FF00FF")
-	backgroundColour := lipgloss.Color("#00FF00")
-
-	correspondingLipglossStyle := lipgloss.
-		NewStyle().
-		Foreground(foregroundColour).
-		Background(backgroundColour).
-		Bold(true)
-
-	// Act
-	rebuiltOutput := tc.Rebuild()
-	lipglossOutput := correspondingLipglossStyle.Render("A")
-
-	// Assert
-	assertEqual(t, rebuiltOutput, lipglossOutput)
 }
 
 func Test_TerminalCellGrid_Has_ExpectedWidth(t *testing.T) {
@@ -118,90 +58,58 @@ func Test_TerminalCellGrid_Has_ExpectedHeight(t *testing.T) {
 func Test_ParseBasicColourAnsiParameters_Creates_ExpectedStyle(t *testing.T) {
 	// Arrange
 	sgrParams := "0;4;32;42"
-	fgColour := 32 // Green
-	bgColour := 42 // Green
 
-	blankStyle := StyleState{}
-	expectedStyleState := StyleState{
-		FgColourMode: Colour16,
-		FgColour:     &fgColour,
-		BgColourMode: Colour16,
-		BgColour:     &bgColour,
-		Underlined:   true,
-	}
+	blankStyle := lipgloss.NewStyle()
+	expectedStyleState := blankStyle.
+		Underline(true).
+		Foreground(lipgloss.Color("32")).
+		Background(lipgloss.Color("42"))
 
 	// Act
 	parsedStyleState := parseStyleState(blankStyle, sgrParams)
 
 	// Assert
-	assertEqual(t, parsedStyleState.FgColourMode, expectedStyleState.FgColourMode)
-	assertEqual(t, *parsedStyleState.FgColour, *expectedStyleState.FgColour)
-	assertEqual(t, parsedStyleState.BgColourMode, expectedStyleState.BgColourMode)
-	assertEqual(t, *parsedStyleState.BgColour, *expectedStyleState.BgColour)
-	assertEqual(t, parsedStyleState.Underlined, expectedStyleState.Underlined)
+	assertStyleEqual(t, parsedStyleState, expectedStyleState)
 }
 
 func Test_Parse256ColourAnsiParameters_Creates_ExpectedStyle(t *testing.T) {
 	// Arrange
 	sgrParams := "0;38;5;99;48;5;99"
-	colour := 99 // Lavender
 
-	blankStyle := StyleState{}
-	expectedStyleState := StyleState{
-		FgColourMode: Colour256,
-		FgColour:     &colour,
-		BgColourMode: Colour256,
-		BgColour:     &colour,
-	}
+	blankStyle := lipgloss.NewStyle()
+	expectedStyleState := blankStyle.
+		Foreground(lipgloss.Color("99")).
+		Background(lipgloss.Color("99"))
 
 	// Act
 	parsedStyleState := parseStyleState(blankStyle, sgrParams)
 
 	// Assert
-	assertEqual(t, parsedStyleState.FgColourMode, expectedStyleState.FgColourMode)
-	assertEqual(t, *parsedStyleState.FgColour, *expectedStyleState.FgColour)
-	assertEqual(t, parsedStyleState.BgColourMode, expectedStyleState.BgColourMode)
-	assertEqual(t, *parsedStyleState.BgColour, *expectedStyleState.BgColour)
+	assertStyleEqual(t, parsedStyleState, expectedStyleState)
 }
 
 func Test_ParseTrueColourAnsiParameters_Creates_ExpectedStyle(t *testing.T) {
 	// Arrange
 	// Reset, bold, then apply the colour
 	sgrParams := "0;1;38;2;255;0;255;48;2;255;0;255"
-	blankStyle := StyleState{}
-	expectedStyleState := StyleState{
-		FgColourMode: ColourTruecolour,
-		// #FF00FF - hot pink
-		FgR: 255,
-		FgG: 0,
-		FgB: 255,
+	blankStyle := lipgloss.NewStyle()
 
-		BgColourMode: ColourTruecolour,
-		BgR:          255,
-		BgG:          0,
-		BgB:          255,
-		Bold:         true,
-	}
+	expectedStyleState := blankStyle.
+		Bold(true).
+		Foreground(lipgloss.Color("#FF00FF")).
+		Background(lipgloss.Color("#FF00FF"))
 
 	// Act
 	parsedStyleState := parseStyleState(blankStyle, sgrParams)
 
 	// Assert
-	assertEqual(t, parsedStyleState.FgColourMode, expectedStyleState.FgColourMode)
-	assertEqual(t, parsedStyleState.BgColourMode, expectedStyleState.BgColourMode)
-	assertEqual(t, parsedStyleState.FgR, expectedStyleState.FgR)
-	assertEqual(t, parsedStyleState.FgG, expectedStyleState.FgG)
-	assertEqual(t, parsedStyleState.FgB, expectedStyleState.FgB)
-	assertEqual(t, parsedStyleState.BgR, expectedStyleState.BgR)
-	assertEqual(t, parsedStyleState.BgG, expectedStyleState.BgG)
-	assertEqual(t, parsedStyleState.BgB, expectedStyleState.BgB)
-	assertEqual(t, parsedStyleState.Bold, expectedStyleState.Bold)
+	assertStyleEqual(t, parsedStyleState, expectedStyleState)
 }
 
 func Test_AnsiParse_Skips_MalformedSequences(t *testing.T) {
 	// Arrange
 	malformedSequence := "A\x1b["
-	expectedStyleState := StyleState{}
+	expectedStyleState := lipgloss.NewStyle()
 
 	// Act
 	grid := ToTerminalCellGrid(malformedSequence, 5, 1)
@@ -209,7 +117,7 @@ func Test_AnsiParse_Skips_MalformedSequences(t *testing.T) {
 	// Assert
 	assertEqual(t, len(grid), len(grid))
 	assertEqual(t, grid[0][0].Rune, 'A')
-	assertEqual(t, grid[0][0].Style, expectedStyleState)
+	assertEqual(t, grid[0][0].Style.Render("A"), expectedStyleState.Render("A"))
 }
 
 func Test_AnsiParse_Handles_Osc8Url(t *testing.T) {
@@ -236,7 +144,7 @@ func Test_AnsiParse_Handles_Osc8Url(t *testing.T) {
 	assertEqual(t, len(grid[0]), 5)
 	assertEqual(t, grid[0][0].Rune, 'H')
 	assertEqual(t, grid[0][4].Rune, '!')
-	assertEqual(t, grid[0][0].Style, StyleState{})
+	assertEqual(t, grid[0][0].Style.Render("A"), lipgloss.NewStyle().Render("A"))
 	assertEqual(t, stringResult.String(), "Here!")
 }
 
@@ -416,4 +324,29 @@ func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
 
 	// Assert
 	assertEqual(t, cmd == nil, true)
+}
+
+func Test_Modal_DimBackground_DimsBackground(t *testing.T) {
+	// Arrange
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() string { return "1" }),
+		WithDimmedBackground(true),
+	)
+
+	expectedBgStyle := lipgloss.NewStyle().Faint(true)
+
+	// Act
+	modal.Open("000")
+
+	// Assert
+	assertEqual(
+		t,
+		fmt.Sprintf(
+			"%s%s%s",
+			expectedBgStyle.Render("0"),
+			"1",
+			expectedBgStyle.Render("0")),
+		modal.View(),
+	)
 }

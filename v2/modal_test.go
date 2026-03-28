@@ -1,6 +1,7 @@
 package modal
 
 import (
+	"fmt"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -212,4 +213,29 @@ func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
 
 	// Assert
 	assertEqual(t, cmd == nil, true)
+}
+
+func Test_Modal_DimBackground_DimsBackground(t *testing.T) {
+	// Arrange
+	modal := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(func() tea.View { return tea.View{Content: "1"} }),
+		WithDimmedBackground(true),
+	)
+
+	expectedBgStyle := lipgloss.NewStyle().Faint(true)
+
+	// Act
+	modal.Open(tea.View{Content: "000"})
+
+	// Assert
+	assertEqual(
+		t,
+		fmt.Sprintf(
+			"%s%s%s",
+			expectedBgStyle.Render("0"),
+			"1",
+			expectedBgStyle.Render("0")),
+		modal.View().Content,
+	)
 }
