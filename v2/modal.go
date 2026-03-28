@@ -16,8 +16,10 @@ type Model struct {
 	confirmKey string
 	cancelKey  string
 
-	onConfirm  func() tea.Msg
-	onCancel   func() tea.Msg
+	onOpen    tea.Cmd
+	onConfirm tea.Cmd
+	onCancel  tea.Cmd
+
 	background tea.View
 	isOpen     bool
 
@@ -26,9 +28,29 @@ type Model struct {
 
 type Option func(*Model)
 
+// A convenience message returned when the modal is opened.
+// This can be used if the parent only has a single modal,
+// but consumers should define their own message types if
+// they expect to have multiple Models in their component
 type OpenedMsg struct{}
+
+// A convenience message returned when the modal is confirmed.
+// This can be used if the parent only has a single modal,
+// but consumers should define their own message types if
+// they expect to have multiple Models in their component
 type ConfirmMsg struct{}
+
+// A convenience message returned when the modal is closed.
+// This can be used if the parent only has a single modal,
+// but consumers should define their own message types if
+// they expect to have multiple Models in their component
 type CloseMsg struct{}
+
+// The standard use case for the callback is to auto-close the dialog,
+// so this is provided as a convenience. This can be used if the parent
+// only has a single modal, but consumers should define their own message
+// types if they expect to have multiple Models in their component
+type AutocloseMsg struct{}
 
 const (
 	NewlineCharacter  = 10
@@ -109,17 +131,30 @@ func WithDimmedBackground(dim bool) Option {
 	}
 }
 
+// Defines a tea.Cmd to return from Open().
+// This is expected to be used with time.Sleep() for a toast-style
+// display, but it's flexible enough for other uses.
+func WithOpenCmd(cmd tea.Cmd) Option {
+	return func(m *Model) {
+		m.onOpen = cmd
+	}
+}
+
 func (m Model) Opened() bool {
 	return m.isOpen
 }
 
-func (m *Model) Open(background tea.View) tea.Msg {
+func (m *Model) Open(background tea.View) tea.Cmd {
 	m.isOpen = true
 	m.background = background
 
 	m.containerWidth = lipgloss.Width(background.Content)
 	m.containerHeight = lipgloss.Height(background.Content)
-	return OpenedMsg{}
+
+	return tea.Batch(
+		func() tea.Msg { return OpenedMsg{} },
+		m.onOpen,
+	)
 }
 
 func (m *Model) Close() {
