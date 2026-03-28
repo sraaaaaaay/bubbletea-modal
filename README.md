@@ -10,8 +10,9 @@ A modal component that can be used to create dialogs and popups in your TUI.
 
 ## Features
 - **Satisfies `tea.Model`**: familiar API for initialisation and updates.
-- **ANSI-aware**: preserves colour and text style passed in from Lipgloss or other style libraries.
+- **ANSI-aware**: preserves colour and text style passed in from Lipgloss or other ANSI style libraries.
 - **Positionable**: supports `lipgloss.Position` positioning on both axes.
+- **Toasts and Notifications**: easily configure the `modal.Model` to close itself.
 - **Stackable**: `modal.Model` accepts the View() of other `modal.Model` as a background.
 - **OSC-8 support**: "non-typical" sequences such as OSC-8 URLs are supported.
 
@@ -39,12 +40,13 @@ modal := modal.New(
 	WithConfirmCmd(func() tea.Msg { return modal.ConfirmMsg })
 )
 
+// ... then in our parent Update():
 m.modal.Open(parentModel.View())
 ```
 
 ## Usage Notes
 - `modal` operates on a snapshot basis: its `Open()` method expects a string background (usually the `View()` of the parent component).
-- `onConfirm()`/`onClose()` behaviour is injectable at creation time.
+- `onOpen()/onConfirm()`/`onClose()` behaviour is injectable at creation time.
 - The default `onConfirm()` behaviour is to return nil. The default `onClose()` behaviour is to close (stop displaying the modal) and return nil (this is often enough for most uses, but is left open to more complex behaviour).
 
 ## Roadmap

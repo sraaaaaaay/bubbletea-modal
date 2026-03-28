@@ -350,3 +350,33 @@ func Test_Modal_DimBackground_DimsBackground(t *testing.T) {
 		modal.View(),
 	)
 }
+
+func Test_Modal_Autocloses(t *testing.T) {
+	// Arrange
+	modal := New(
+		WithForeground(func() string { return "1" }),
+		WithOpenCmd(func() tea.Msg {
+			return AutocloseMsg{}
+		}),
+	)
+
+	// Act
+	cmd := modal.Open("000")
+	msg := cmd()
+
+	// Because Open() returns a tea.Batch, we need to
+	// execute all of them and check that the autoclose
+	// occurred at some point, although the order doesn't
+	// matter.
+	batch, _ := msg.(tea.BatchMsg)
+	hasAutoClose := false
+	for _, cmd := range batch {
+		_, ok := cmd().(AutocloseMsg)
+		if ok {
+			hasAutoClose = true
+		}
+	}
+
+	// Assert
+	assertEqual(t, hasAutoClose, true)
+}
