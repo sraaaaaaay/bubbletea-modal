@@ -204,16 +204,14 @@ func (m *Model) View() string {
 func (m *Model) Composite() string {
 	foreground := m.foreground()
 
+	fgWidth := lipgloss.Width(foreground)
+	fgHeight := lipgloss.Height(foreground)
+
 	bgGrid := ToTerminalCellGrid(m.background, m.containerWidth, m.containerHeight)
-	fgGrid := ToTerminalCellGrid(foreground, m.containerWidth, m.containerHeight)
+	fgGrid := ToTerminalCellGrid(foreground, fgWidth, fgHeight)
 
 	bgWidth := len(bgGrid[0])
 	bgHeight := len(bgGrid)
-
-	// The foreground grid gets extended to match the background scale,
-	// so we need to get the "original" dimensions
-	fgWidth := lipgloss.Width(foreground)
-	fgHeight := lipgloss.Height(foreground)
 
 	yOffset := applyPosition(m.vPos, bgHeight, fgHeight)
 	xOffset := applyPosition(m.hPos, bgWidth, fgWidth)
@@ -245,19 +243,38 @@ func (m *Model) Composite() string {
 		}
 	}
 
-	var builder strings.Builder
+	var finalView strings.Builder
+
+	// Frequent calls to style.Render() are expensive - try to
+	// accumulate cells with the same style into a buffer before
+	// applying the style to relieve this.
+	var bufferStyle lipgloss.Style
+	var buffer strings.Builder
+	flushBuffer := func() {
+		finalView.WriteString(bufferStyle.Render(buffer.String()))
+		buffer.Reset()
+	}
+
 	for i, row := range bgGrid {
 		for _, cell := range row {
-			builder.WriteString(
-				cell.Style.Render(string(cell.Rune)),
-			)
+			if cell.Style.Value() != bufferStyle.Value() {
+				flushBuffer()
+				bufferStyle = cell.Style
+			}
+
+			buffer.WriteRune(cell.Rune)
 		}
+
+		if buffer.Len() > 0 {
+			flushBuffer()
+		}
+
 		if i < len(bgGrid)-1 {
-			builder.WriteRune('\n')
+			finalView.WriteRune('\n')
 		}
 	}
 
-	return builder.String()
+	return finalView.String()
 }
 
 func applyPosition(pos lipgloss.Position, bgDimension, fgDimension int) int {

@@ -380,3 +380,19 @@ func Test_Modal_Autocloses(t *testing.T) {
 	// Assert
 	assertEqual(t, hasAutoClose, true)
 }
+
+func Benchmark_Modal_Composite(b *testing.B) {
+	background := strings.Repeat(strings.Repeat("0", 120)+"\n", 39) + strings.Repeat("0", 120)
+	foreground := func() string { return strings.Repeat("1", 40) }
+
+	dialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(foreground),
+		WithDimmedBackground(true),
+	)
+	dialog.Open(background)
+
+	for b.Loop() {
+		dialog.View()
+	}
+}
