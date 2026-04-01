@@ -50,5 +50,4 @@ m.modal.Open(parentModel.View())
 - The default `onConfirm()` behaviour is to return nil. The default `onClose()` behaviour is to close (stop displaying the modal) and return nil (this is often enough for most uses, but is left open to more complex behaviour).
 
 ## Roadmap
-- Finer control over positioning - expose x/y translation 
-- Mouse events (e.g. click outside -> close the dialog)
+- Finer control over positioning - expose x/y translation

@@ -9,9 +9,7 @@ type Model struct {
 	hPos lipgloss.Position
 	vPos lipgloss.Position
 
-	containerWidth  int
-	containerHeight int
-	foreground      func() tea.View
+	foreground func() tea.View
 
 	confirmKey string
 	cancelKey  string
@@ -24,6 +22,7 @@ type Model struct {
 	isOpen     bool
 
 	dimBackground bool
+	clickToClose  bool
 }
 
 type Option func(*Model)
@@ -131,40 +130,70 @@ func WithOpenCmd(cmd tea.Cmd) Option {
 	}
 }
 
-func (m *Model) Opened() bool {
+// Allows the dialog to be closed by clicking outside it.
+func WithClickToClose(clickToClose bool) Option {
+	return func(m *Model) {
+		m.clickToClose = clickToClose
+	}
+}
+
+func (m Model) Opened() bool {
 	return m.isOpen
 }
 
-func (m *Model) Open(background tea.View) tea.Cmd {
+func (m Model) Open(background tea.View) (Model, tea.Cmd) {
 	m.isOpen = true
 	m.background = background
 
-	m.containerWidth = lipgloss.Width(background.Content)
-	m.containerHeight = lipgloss.Height(background.Content)
-
-	return tea.Batch(
+	return m, tea.Batch(
 		func() tea.Msg { return OpenedMsg{} },
 		m.onOpen,
 	)
 }
 
-func (m *Model) Close() {
+func (m Model) Close() Model {
 	m.isOpen = false
+	return m
 }
 
-func (m *Model) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) foregroundBounds() (x, y, w, h int) {
+	foreground := m.foreground()
+	containerWidth := lipgloss.Width(m.background.Content)
+	containerHeight := lipgloss.Height(m.background.Content)
+	fgWidth := lipgloss.Width(foreground.Content)
+	fgHeight := lipgloss.Height(foreground.Content)
+
+	return applyPosition(m.hPos, containerWidth, fgWidth),
+		applyPosition(m.vPos, containerHeight, fgHeight),
+		fgWidth,
+		fgHeight
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		if m.clickToClose && msg.Mouse().Button == tea.MouseLeft {
+			mouse := msg.Mouse()
+			fgX, fgY, fgWidth, fgHeight := m.foregroundBounds()
+			clickedForeground := mouse.X >= fgX && mouse.X < fgX+fgWidth &&
+				mouse.Y >= fgY && mouse.Y < fgY+fgHeight
+
+			if !clickedForeground {
+				m = m.Close()
+				return m, m.onCancel
+			}
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case m.confirmKey:
 			return m, m.onConfirm
 
 		case m.cancelKey:
-			m.Close()
+			m = m.Close()
 			return m, m.onCancel
 		}
 	}
@@ -172,7 +201,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) View() tea.View {
+func (m Model) View() tea.View {
 	if !m.isOpen {
 		return tea.View{Content: ""}
 	}
@@ -180,18 +209,26 @@ func (m *Model) View() tea.View {
 	return tea.View{Content: m.Composite()}
 }
 
-func (m *Model) Composite() string {
+func (m Model) Composite() string {
 	foreground := m.foreground()
+	containerWidth := lipgloss.Width(m.background.Content)
+	containerHeight := lipgloss.Height(m.background.Content)
 	background := lipgloss.
 		NewStyle().
 		Faint(m.dimBackground).
 		Render(m.background.Content)
 
+	fgWidth := lipgloss.Width(foreground.Content)
+	fgHeight := lipgloss.Height(foreground.Content)
+
+	fgX := applyPosition(m.hPos, containerWidth, fgWidth)
+	fgY := applyPosition(m.vPos, containerHeight, fgHeight)
+
 	bg := lipgloss.NewLayer(background)
 	fg := lipgloss.
 		NewLayer(foreground.Content).
-		X(applyPosition(m.hPos, m.containerWidth, lipgloss.Width(foreground.Content))).
-		Y(applyPosition(m.vPos, m.containerHeight, lipgloss.Height(foreground.Content))).
+		X(fgX).
+		Y(fgY).
 		Z(1)
 
 	compositor := lipgloss.NewCompositor(bg, fg)

@@ -161,7 +161,7 @@ func Test_Modal_Displays_AsExpected(t *testing.T) {
 		WithForeground(foreground),
 	)
 
-	dialog.Open(background)
+	dialog, _ = dialog.Open(background)
 
 	// Assert
 	assertEqual(t, dialog.View(), expectedModalDisplay)
@@ -187,8 +187,8 @@ func Test_StackedModal_Displays_AsExpected(t *testing.T) {
 		WithForeground(stackedForeground),
 	)
 
-	dialog.Open(background)
-	stackedDialog.Open(dialog.View())
+	dialog, _ = dialog.Open(background)
+	stackedDialog, _ = stackedDialog.Open(dialog.View())
 
 	// Assert
 	assertEqual(t, dialog.View(), expectedModalDisplay)
@@ -208,7 +208,7 @@ func Test_Modal_RespondsTo_DefaultConfirmKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open("000")
+	modal, _ = modal.Open("000")
 	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("Y")})
 
 	var msg tea.Msg
@@ -219,7 +219,7 @@ func Test_Modal_RespondsTo_DefaultConfirmKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), true)
+	assertEqual(t, updated.(Model).Opened(), true)
 }
 
 func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
@@ -236,7 +236,7 @@ func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open("000")
+	modal, _ = modal.Open("000")
 	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("enter")})
 
 	var msg tea.Msg
@@ -247,7 +247,7 @@ func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), true)
+	assertEqual(t, updated.(Model).Opened(), true)
 }
 
 func Test_Modal_RespondsTo_DefaultCancelKey(t *testing.T) {
@@ -263,7 +263,7 @@ func Test_Modal_RespondsTo_DefaultCancelKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open("000")
+	modal, _ = modal.Open("000")
 	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("N")})
 
 	var msg tea.Msg
@@ -274,7 +274,7 @@ func Test_Modal_RespondsTo_DefaultCancelKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), false)
+	assertEqual(t, updated.(Model).Opened(), false)
 }
 
 func Test_Modal_RespondsTo_CustomCancelKey(t *testing.T) {
@@ -291,7 +291,7 @@ func Test_Modal_RespondsTo_CustomCancelKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open("000")
+	modal, _ = modal.Open("000")
 	updated, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("esc")})
 
 	var msg tea.Msg
@@ -302,7 +302,7 @@ func Test_Modal_RespondsTo_CustomCancelKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), false)
+	assertEqual(t, updated.(Model).Opened(), false)
 }
 
 func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
@@ -319,7 +319,7 @@ func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
 	)
 
 	// Act
-	modal.Open("000")
+	modal, _ = modal.Open("000")
 	_, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ctrl+q")})
 
 	// Assert
@@ -337,7 +337,7 @@ func Test_Modal_DimBackground_DimsBackground(t *testing.T) {
 	expectedBgStyle := lipgloss.NewStyle().Faint(true)
 
 	// Act
-	modal.Open("000")
+	modal, _ = modal.Open("000")
 
 	// Assert
 	assertEqual(
@@ -361,7 +361,7 @@ func Test_Modal_Autocloses(t *testing.T) {
 	)
 
 	// Act
-	cmd := modal.Open("000")
+	modal, cmd := modal.Open("000")
 	msg := cmd()
 
 	// Because Open() returns a tea.Batch, we need to
@@ -390,7 +390,7 @@ func Benchmark_Modal_Composite(b *testing.B) {
 		WithForeground(foreground),
 		WithDimmedBackground(true),
 	)
-	dialog.Open(background)
+	dialog, _ = dialog.Open(background)
 
 	for b.Loop() {
 		dialog.View()

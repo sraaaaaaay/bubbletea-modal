@@ -28,7 +28,7 @@ func Test_OddWidthModalPosition_Displays_AsExpected(t *testing.T) {
 		WithForeground(foreground),
 	)
 
-	dialog.Open(tea.View{Content: background})
+	dialog, _ = dialog.Open(tea.View{Content: background})
 
 	// Assert
 	assertEqual(t, dialog.View().Content, expectedModalDisplay)
@@ -47,7 +47,7 @@ func Test_EvenWidthModalPosition_Displays_AsExpected(t *testing.T) {
 		WithForeground(foreground),
 	)
 
-	dialog.Open(tea.View{Content: background})
+	dialog, _ = dialog.Open(tea.View{Content: background})
 
 	// Assert
 	assertEqual(t, dialog.View().Content, expectedModalDisplay)
@@ -73,8 +73,8 @@ func Test_StackedModal_Displays_AsExpected(t *testing.T) {
 		WithForeground(stackedForeground),
 	)
 
-	dialog.Open(tea.View{Content: background})
-	stackedDialog.Open(dialog.View())
+	dialog, _ = dialog.Open(tea.View{Content: background})
+	stackedDialog, _ = stackedDialog.Open(dialog.View())
 
 	// Assert
 	assertEqual(t, dialog.View().Content, expectedModalDisplay)
@@ -94,7 +94,7 @@ func Test_Modal_RespondsTo_DefaultConfirmKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open(tea.View{Content: "000"})
+	modal, _ = modal.Open(tea.View{Content: "000"})
 
 	updated, cmd := modal.Update(tea.KeyPressMsg{Code: 'Y'})
 
@@ -106,7 +106,7 @@ func Test_Modal_RespondsTo_DefaultConfirmKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), true)
+	assertEqual(t, updated.(Model).Opened(), true)
 }
 
 func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
@@ -123,7 +123,7 @@ func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open(tea.View{Content: "000"})
+	modal, _ = modal.Open(tea.View{Content: "000"})
 
 	updated, cmd := modal.Update(tea.KeyPressMsg{Text: "enter"})
 
@@ -136,7 +136,7 @@ func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), true)
+	assertEqual(t, updated.(Model).Opened(), true)
 }
 
 func Test_Modal_RespondsTo_DefaultCloseKey(t *testing.T) {
@@ -152,7 +152,7 @@ func Test_Modal_RespondsTo_DefaultCloseKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open(tea.View{Content: "000"})
+	modal, _ = modal.Open(tea.View{Content: "000"})
 	updated, cmd := modal.Update(tea.KeyPressMsg{Code: 'N'})
 
 	var msg tea.Msg
@@ -163,7 +163,7 @@ func Test_Modal_RespondsTo_DefaultCloseKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), false)
+	assertEqual(t, updated.(Model).Opened(), false)
 }
 
 func Test_Modal_RespondsTo_CustomCloseKey(t *testing.T) {
@@ -180,7 +180,7 @@ func Test_Modal_RespondsTo_CustomCloseKey(t *testing.T) {
 	)
 
 	// Act
-	modal.Open(tea.View{Content: "000"})
+	modal, _ = modal.Open(tea.View{Content: "000"})
 	updated, cmd := modal.Update(tea.KeyPressMsg{Text: "esc"})
 
 	var msg tea.Msg
@@ -191,7 +191,7 @@ func Test_Modal_RespondsTo_CustomCloseKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(*Model).Opened(), false)
+	assertEqual(t, updated.(Model).Opened(), false)
 }
 
 func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
@@ -208,7 +208,7 @@ func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {
 	)
 
 	// Act
-	modal.Open(tea.View{Content: "000"})
+	modal, _ = modal.Open(tea.View{Content: "000"})
 	_, cmd := modal.Update(tea.KeyPressMsg{Text: "ctrl+q"})
 
 	// Assert
@@ -226,7 +226,7 @@ func Test_Modal_DimBackground_DimsBackground(t *testing.T) {
 	expectedBgStyle := lipgloss.NewStyle().Faint(true)
 
 	// Act
-	modal.Open(tea.View{Content: "000"})
+	modal, _ = modal.Open(tea.View{Content: "000"})
 
 	// Assert
 	assertEqual(
@@ -250,7 +250,7 @@ func Test_Modal_Autocloses(t *testing.T) {
 	)
 
 	// Act
-	cmd := modal.Open(tea.View{Content: "000"})
+	modal, cmd := modal.Open(tea.View{Content: "000"})
 	msg := cmd()
 
 	// Because Open() returns a tea.Batch, we need to

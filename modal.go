@@ -22,11 +22,11 @@ type Model struct {
 	onConfirm tea.Cmd
 	onCancel  tea.Cmd
 
-	background      string
-	isOpen          bool
-	containerWidth  int
-	containerHeight int
-	dimBackground   bool
+	background string
+	isOpen     bool
+
+	dimBackground bool
+	clickToClose  bool
 }
 
 type Option func(*Model)
@@ -152,40 +152,78 @@ func WithOpenCmd(cmd tea.Cmd) Option {
 	}
 }
 
-func (m *Model) Opened() bool {
+// Allows the dialog to be closed by clicking outside it.
+func WithClickToClose(clickToClose bool) Option {
+	return func(m *Model) {
+		m.clickToClose = clickToClose
+	}
+}
+
+func (m Model) Opened() bool {
 	return m.isOpen
 }
 
-func (m *Model) Open(background string) tea.Cmd {
+func (m Model) Open(background string) (Model, tea.Cmd) {
 	m.isOpen = true
 	m.background = background
 
-	m.containerWidth = lipgloss.Width(background)
-	m.containerHeight = lipgloss.Height(background)
-
-	return tea.Batch(
+	return m, tea.Batch(
 		func() tea.Msg { return OpenedMsg{} },
 		m.onOpen,
 	)
 }
 
-func (m *Model) Close() {
+func (m Model) Close() Model {
 	m.isOpen = false
+	return m
 }
 
-func (m *Model) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) foregroundBounds() (x, y, w, h int) {
+	foreground := m.foreground()
+	containerWidth := lipgloss.Width(m.background)
+	containerHeight := lipgloss.Height(m.background)
+	fgWidth := lipgloss.Width(foreground)
+	fgHeight := lipgloss.Height(foreground)
+
+	bgGrid := ToTerminalCellGrid(m.background, containerWidth, containerHeight)
+	bgWidth := len(bgGrid[0])
+	bgHeight := len(bgGrid)
+
+	return applyPosition(m.hPos, bgWidth, fgWidth),
+		applyPosition(m.vPos, bgHeight, fgHeight),
+		fgWidth,
+		fgHeight
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		if !m.clickToClose {
+			break
+		}
+
+		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+			fgX, fgY, fgWidth, fgHeight := m.foregroundBounds()
+			clickedForeground := msg.X >= fgX && msg.X < fgX+fgWidth &&
+				msg.Y >= fgY && msg.Y < fgY+fgHeight
+
+			if !clickedForeground {
+				m = m.Close()
+				return m, m.onCancel
+			}
+		}
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case m.confirmKey:
 			return m, m.onConfirm
 
 		case m.cancelKey:
-			m.Close()
+			m = m.Close()
 			return m, m.onCancel
 		}
 	}
@@ -193,7 +231,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) View() string {
+func (m Model) View() string {
 	if !m.isOpen {
 		return ""
 	}
@@ -201,13 +239,16 @@ func (m *Model) View() string {
 	return m.Composite()
 }
 
-func (m *Model) Composite() string {
+func (m Model) Composite() string {
 	foreground := m.foreground()
+
+	containerWidth := lipgloss.Width(m.background)
+	containerHeight := lipgloss.Height(m.background)
 
 	fgWidth := lipgloss.Width(foreground)
 	fgHeight := lipgloss.Height(foreground)
 
-	bgGrid := ToTerminalCellGrid(m.background, m.containerWidth, m.containerHeight)
+	bgGrid := ToTerminalCellGrid(m.background, containerWidth, containerHeight)
 	fgGrid := ToTerminalCellGrid(foreground, fgWidth, fgHeight)
 
 	bgWidth := len(bgGrid[0])
