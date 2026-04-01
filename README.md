@@ -29,15 +29,15 @@ func dialogContent() string {
 		lipgloss.JoinHorizontal(lipgloss.Center, confirm, cancel),
 	)
 
-	return lipgloss.NewStyle.Border(lipgloss.RoundedBorder()).Render(joined)
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Render(joined)
 }
 
 modal := modal.New(
 	WithPosition(lipgloss.Center, lipgloss.Center),
 	WithForeground(dialogContent),
 	WithDimmedBackground(true),
-	WithKeymap("enter", "esc"),
-	WithConfirmCmd(func() tea.Msg { return modal.ConfirmMsg })
+	WithKeyMap("enter", "esc"),
+	WithConfirmCmd(func() tea.Msg { return modal.ConfirmMsg{} }),
 )
 
 // ... then in our parent Update():
