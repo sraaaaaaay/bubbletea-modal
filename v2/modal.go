@@ -6,12 +6,12 @@ import (
 )
 
 type Model struct {
-	HPos lipgloss.Position
-	VPos lipgloss.Position
+	hPos lipgloss.Position
+	vPos lipgloss.Position
 
 	containerWidth  int
 	containerHeight int
-	Foreground      func() tea.View
+	foreground      func() tea.View
 
 	confirmKey string
 	cancelKey  string
@@ -52,21 +52,12 @@ type CloseMsg struct{}
 // types if they expect to have multiple Models in their component
 type AutocloseMsg struct{}
 
-const (
-	NewlineCharacter  = 10
-	EscapeCharacter   = 27
-	AnsiCsiIntroducer = '['
-	SgrTerminator     = 'm'
-	Osc8Introducer    = ']'
-	Osc8Terminator    = '\a'
-)
-
 // Creates a new modal.
 func New(opts ...Option) Model {
 	m := Model{
-		HPos:       lipgloss.Center,
-		VPos:       lipgloss.Center,
-		Foreground: func() tea.View { return tea.View{Content: ""} },
+		hPos:       lipgloss.Center,
+		vPos:       lipgloss.Center,
+		foreground: func() tea.View { return tea.View{Content: ""} },
 		onConfirm:  func() tea.Msg { return nil },
 		onCancel:   func() tea.Msg { return nil },
 		confirmKey: "Y",
@@ -84,8 +75,8 @@ func New(opts ...Option) Model {
 // within the background container.
 func WithPosition(HPos, VPos lipgloss.Position) Option {
 	return func(m *Model) {
-		m.HPos = HPos
-		m.VPos = VPos
+		m.hPos = HPos
+		m.vPos = VPos
 	}
 }
 
@@ -94,7 +85,7 @@ func WithPosition(HPos, VPos lipgloss.Position) Option {
 // its appearance and content in any way you want.
 func WithForeground(fg func() tea.View) Option {
 	return func(m *Model) {
-		m.Foreground = fg
+		m.foreground = fg
 	}
 }
 
@@ -140,7 +131,7 @@ func WithOpenCmd(cmd tea.Cmd) Option {
 	}
 }
 
-func (m Model) Opened() bool {
+func (m *Model) Opened() bool {
 	return m.isOpen
 }
 
@@ -161,11 +152,11 @@ func (m *Model) Close() {
 	m.isOpen = false
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -181,7 +172,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) View() tea.View {
+func (m *Model) View() tea.View {
 	if !m.isOpen {
 		return tea.View{Content: ""}
 	}
@@ -190,7 +181,7 @@ func (m Model) View() tea.View {
 }
 
 func (m *Model) Composite() string {
-	foreground := m.Foreground()
+	foreground := m.foreground()
 	background := lipgloss.
 		NewStyle().
 		Faint(m.dimBackground).
@@ -199,8 +190,8 @@ func (m *Model) Composite() string {
 	bg := lipgloss.NewLayer(background)
 	fg := lipgloss.
 		NewLayer(foreground.Content).
-		X(applyPosition(m.HPos, m.containerWidth, lipgloss.Width(foreground.Content))).
-		Y(applyPosition(m.VPos, m.containerHeight, lipgloss.Height(foreground.Content))).
+		X(applyPosition(m.hPos, m.containerWidth, lipgloss.Width(foreground.Content))).
+		Y(applyPosition(m.vPos, m.containerHeight, lipgloss.Height(foreground.Content))).
 		Z(1)
 
 	compositor := lipgloss.NewCompositor(bg, fg)
@@ -208,13 +199,15 @@ func (m *Model) Composite() string {
 }
 
 func applyPosition(pos lipgloss.Position, bgDimension, fgDimension int) int {
+	var offset int
 	if pos == lipgloss.Left || pos == lipgloss.Top {
-		return 0
+		offset = 0
 	} else if pos > 0 && pos < 1 {
 		bgOffset := float64(bgDimension) * float64(pos)
 		fgOffset := float64(fgDimension) * float64(pos)
-		return int(bgOffset - fgOffset)
+		offset = int(bgOffset - fgOffset)
 	} else {
-		return bgDimension - fgDimension
+		offset = bgDimension - fgDimension
 	}
+	return max(0, offset)
 }

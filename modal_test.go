@@ -219,7 +219,7 @@ func Test_Modal_RespondsTo_DefaultConfirmKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(Model).Opened(), true)
+	assertEqual(t, updated.(*Model).Opened(), true)
 }
 
 func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
@@ -247,7 +247,7 @@ func Test_Modal_RespondsTo_CustomConfirmKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(Model).Opened(), true)
+	assertEqual(t, updated.(*Model).Opened(), true)
 }
 
 func Test_Modal_RespondsTo_DefaultCancelKey(t *testing.T) {
@@ -274,7 +274,7 @@ func Test_Modal_RespondsTo_DefaultCancelKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(Model).Opened(), false)
+	assertEqual(t, updated.(*Model).Opened(), false)
 }
 
 func Test_Modal_RespondsTo_CustomCancelKey(t *testing.T) {
@@ -302,7 +302,7 @@ func Test_Modal_RespondsTo_CustomCancelKey(t *testing.T) {
 
 	// Assert
 	assertEqual(t, ok, true)
-	assertEqual(t, updated.(Model).Opened(), false)
+	assertEqual(t, updated.(*Model).Opened(), false)
 }
 
 func Test_Modal_SafelyConsumes_UnrelatedKeyPress(t *testing.T) {

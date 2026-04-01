@@ -11,9 +11,9 @@ import (
 )
 
 type Model struct {
-	HPos       lipgloss.Position
-	VPos       lipgloss.Position
-	Foreground func() string
+	hPos       lipgloss.Position
+	vPos       lipgloss.Position
+	foreground func() string
 
 	confirmKey string
 	cancelKey  string
@@ -73,9 +73,9 @@ const (
 // Creates a new modal.
 func New(opts ...Option) Model {
 	m := Model{
-		HPos:       lipgloss.Center,
-		VPos:       lipgloss.Center,
-		Foreground: func() string { return "" },
+		hPos:       lipgloss.Center,
+		vPos:       lipgloss.Center,
+		foreground: func() string { return "" },
 		onConfirm:  func() tea.Msg { return nil },
 		onCancel:   func() tea.Msg { return nil },
 		confirmKey: "Y",
@@ -93,8 +93,8 @@ func New(opts ...Option) Model {
 // within the background container.
 func WithPosition(HPos, VPos lipgloss.Position) Option {
 	return func(m *Model) {
-		m.HPos = HPos
-		m.VPos = VPos
+		m.hPos = HPos
+		m.vPos = VPos
 	}
 }
 
@@ -103,7 +103,7 @@ func WithPosition(HPos, VPos lipgloss.Position) Option {
 // its appearance and content in any way you want.
 func WithForeground(fg func() string) Option {
 	return func(m *Model) {
-		m.Foreground = fg
+		m.foreground = fg
 	}
 }
 
@@ -152,7 +152,7 @@ func WithOpenCmd(cmd tea.Cmd) Option {
 	}
 }
 
-func (m Model) Opened() bool {
+func (m *Model) Opened() bool {
 	return m.isOpen
 }
 
@@ -173,11 +173,11 @@ func (m *Model) Close() {
 	m.isOpen = false
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -193,7 +193,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) View() string {
+func (m *Model) View() string {
 	if !m.isOpen {
 		return ""
 	}
@@ -202,7 +202,7 @@ func (m Model) View() string {
 }
 
 func (m *Model) Composite() string {
-	foreground := m.Foreground()
+	foreground := m.foreground()
 
 	bgGrid := ToTerminalCellGrid(m.background, m.containerWidth, m.containerHeight)
 	fgGrid := ToTerminalCellGrid(foreground, m.containerWidth, m.containerHeight)
@@ -215,8 +215,8 @@ func (m *Model) Composite() string {
 	fgWidth := lipgloss.Width(foreground)
 	fgHeight := lipgloss.Height(foreground)
 
-	yOffset := applyPosition(m.VPos, bgHeight, fgHeight)
-	xOffset := applyPosition(m.HPos, bgWidth, fgWidth)
+	yOffset := applyPosition(m.vPos, bgHeight, fgHeight)
+	xOffset := applyPosition(m.hPos, bgWidth, fgWidth)
 
 	if m.dimBackground {
 		for rowIdx := range bgGrid {
@@ -234,7 +234,10 @@ func (m *Model) Composite() string {
 	}
 
 	for rowIdx := range fgHeight {
-		for i := xOffset; i < xOffset+lipgloss.Width(foreground); i++ {
+		if rowIdx+yOffset >= bgHeight {
+			break
+		}
+		for i := xOffset; i < min(xOffset+fgWidth, bgWidth); i++ {
 			fgCell := fgGrid[rowIdx][i-xOffset]
 			if fgCell.HasContent {
 				bgGrid[rowIdx+yOffset][i] = fgCell
@@ -258,15 +261,17 @@ func (m *Model) Composite() string {
 }
 
 func applyPosition(pos lipgloss.Position, bgDimension, fgDimension int) int {
+	var offset int
 	if pos == lipgloss.Left || pos == lipgloss.Top {
-		return 0
+		offset = 0
 	} else if pos > 0 && pos < 1 {
 		bgOffset := float64(bgDimension) * float64(pos)
 		fgOffset := float64(fgDimension) * float64(pos)
-		return int(bgOffset - fgOffset)
+		offset = int(bgOffset - fgOffset)
 	} else {
-		return bgDimension - fgDimension
+		offset = bgDimension - fgDimension
 	}
+	return max(0, offset)
 }
 
 func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
