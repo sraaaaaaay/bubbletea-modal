@@ -66,7 +66,7 @@ func Test_ParseBasicColourAnsiParameters_Creates_ExpectedStyle(t *testing.T) {
 		Background(lipgloss.Color("42"))
 
 	// Act
-	parsedStyleState := parseStyleState(blankStyle, sgrParams)
+	parsedStyleState, _ := parseStyleState(blankStyle, "", sgrParams)
 
 	// Assert
 	assertStyleEqual(t, parsedStyleState, expectedStyleState)
@@ -82,7 +82,7 @@ func Test_Parse256ColourAnsiParameters_Creates_ExpectedStyle(t *testing.T) {
 		Background(lipgloss.Color("99"))
 
 	// Act
-	parsedStyleState := parseStyleState(blankStyle, sgrParams)
+	parsedStyleState, _ := parseStyleState(blankStyle, "", sgrParams)
 
 	// Assert
 	assertStyleEqual(t, parsedStyleState, expectedStyleState)
@@ -100,7 +100,7 @@ func Test_ParseTrueColourAnsiParameters_Creates_ExpectedStyle(t *testing.T) {
 		Background(lipgloss.Color("#FF00FF"))
 
 	// Act
-	parsedStyleState := parseStyleState(blankStyle, sgrParams)
+	parsedStyleState, _ := parseStyleState(blankStyle, "", sgrParams)
 
 	// Assert
 	assertStyleEqual(t, parsedStyleState, expectedStyleState)
@@ -379,6 +379,30 @@ func Test_Modal_Autocloses(t *testing.T) {
 
 	// Assert
 	assertEqual(t, hasAutoClose, true)
+}
+
+func Test_Modal_PreservesStyledBackground(t *testing.T) {
+	// Arrange
+	bgStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
+	styledBg := bgStyle.Render("000")
+	foreground := func() string { return "1" }
+
+	// Act
+	dialog := New(
+		WithPosition(lipgloss.Center, lipgloss.Center),
+		WithForeground(foreground),
+	)
+	dialog, _ = dialog.Open(styledBg)
+	output := dialog.View()
+
+	// Assert
+	expectedOutput := fmt.Sprintf(
+		"%s%s%s",
+		bgStyle.Render("0"),
+		"1",
+		bgStyle.Render("0"),
+	)
+	assertEqual(t, output, expectedOutput)
 }
 
 func Benchmark_Modal_Composite(b *testing.B) {

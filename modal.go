@@ -58,6 +58,7 @@ type AutocloseMsg struct{}
 type TerminalCell struct {
 	Rune       rune
 	Style      lipgloss.Style
+	StyleKey   string
 	HasContent bool
 }
 
@@ -292,6 +293,7 @@ func (m Model) Composite() string {
 	// accumulate cells with the same style into a buffer before
 	// applying the style to relieve this.
 	var bufferStyle lipgloss.Style
+	var bufferStyleKey string
 	var buffer strings.Builder
 	flushBuffer := func() {
 		finalView.WriteString(bufferStyle.Render(buffer.String()))
@@ -300,9 +302,10 @@ func (m Model) Composite() string {
 
 	for i, row := range bgGrid {
 		for _, cell := range row {
-			if cell.Style.Value() != bufferStyle.Value() {
+			if cell.StyleKey != bufferStyleKey {
 				flushBuffer()
 				bufferStyle = cell.Style
+				bufferStyleKey = cell.StyleKey
 			}
 
 			buffer.WriteRune(cell.Rune)
@@ -345,6 +348,7 @@ func toTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 
 	currentX, currentY := 0, 0
 	currentStyle := lipgloss.NewStyle()
+	currentStyleKey := ""
 
 	inputAsRunes := []rune(input)
 
@@ -407,7 +411,7 @@ func toTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 				// terminal cell
 				if sequenceEndIndex != -1 {
 					parametersString := string(inputAsRunes[sequenceParamStart:sequenceEndIndex])
-					currentStyle = parseStyleState(currentStyle, parametersString)
+					currentStyle, currentStyleKey = parseStyleState(currentStyle, currentStyleKey, parametersString)
 
 					i = sequenceEndIndex
 					continue
@@ -426,11 +430,11 @@ func toTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 		}
 
 		if currentX < width {
-			grid[currentY][currentX] = TerminalCell{Rune: currentRune, Style: currentStyle, HasContent: true}
+			grid[currentY][currentX] = TerminalCell{Rune: currentRune, Style: currentStyle, StyleKey: currentStyleKey, HasContent: true}
 
 			// Wide rune (e.g. CJK) - blank the adjacent spot
 			if currentRuneWidth == 2 && currentX+1 < width {
-				grid[currentY][currentX+1] = TerminalCell{Rune: 0, Style: currentStyle, HasContent: true}
+				grid[currentY][currentX+1] = TerminalCell{Rune: 0, Style: currentStyle, StyleKey: currentStyleKey, HasContent: true}
 			}
 			currentX += currentRuneWidth
 		}
@@ -439,9 +443,9 @@ func toTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 	return grid
 }
 
-func parseStyleState(style lipgloss.Style, params string) lipgloss.Style {
+func parseStyleState(style lipgloss.Style, styleKey string, params string) (lipgloss.Style, string) {
 	if params == "" || params == "0" {
-		return lipgloss.NewStyle()
+		return lipgloss.NewStyle(), ""
 	}
 
 	paramValues := []int{}
@@ -508,5 +512,8 @@ func parseStyleState(style lipgloss.Style, params string) lipgloss.Style {
 		}
 	}
 
-	return style
+	if styleKey == "" {
+		return style, params
+	}
+	return style, styleKey + ";" + params
 }
