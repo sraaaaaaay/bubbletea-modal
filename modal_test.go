@@ -36,7 +36,7 @@ func Test_TerminalCellGrid_Has_ExpectedWidth(t *testing.T) {
 	expectedHeight := 4 // Two lines + two newlines
 
 	// Act
-	grid := ToTerminalCellGrid(stringToRender, expectedWidth, expectedHeight)
+	grid := toTerminalCellGrid(stringToRender, expectedWidth, expectedHeight)
 
 	// Assert
 	assertEqual(t, len(grid[0]), expectedWidth)
@@ -49,7 +49,7 @@ func Test_TerminalCellGrid_Has_ExpectedHeight(t *testing.T) {
 	expectedHeight := 4
 
 	// Act
-	grid := ToTerminalCellGrid(stringToRender, expectedWidth, expectedHeight)
+	grid := toTerminalCellGrid(stringToRender, expectedWidth, expectedHeight)
 
 	// Assert
 	assertEqual(t, len(grid), expectedHeight)
@@ -112,7 +112,7 @@ func Test_AnsiParse_Skips_MalformedSequences(t *testing.T) {
 	expectedStyleState := lipgloss.NewStyle()
 
 	// Act
-	grid := ToTerminalCellGrid(malformedSequence, 5, 1)
+	grid := toTerminalCellGrid(malformedSequence, 5, 1)
 
 	// Assert
 	assertEqual(t, len(grid), len(grid))
@@ -132,7 +132,7 @@ func Test_AnsiParse_Handles_Osc8Url(t *testing.T) {
 	osc8String := introducer + noParams + url + bell + text + introducer + noParams + bell
 
 	// Act
-	grid := ToTerminalCellGrid(osc8String, 5, 1)
+	grid := toTerminalCellGrid(osc8String, 5, 1)
 
 	var stringResult strings.Builder
 	for _, cell := range grid[0] {

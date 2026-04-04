@@ -62,12 +62,12 @@ type TerminalCell struct {
 }
 
 const (
-	NewlineCharacter  = 10
-	EscapeCharacter   = 27
-	AnsiCsiIntroducer = '['
-	SgrTerminator     = 'm'
-	Osc8Introducer    = ']'
-	Osc8Terminator    = '\a'
+	newlineCharacter  = 10
+	escapeCharacter   = 27
+	ansiCsiIntroducer = '['
+	sgrTerminator     = 'm'
+	osc8Introducer    = ']'
+	osc8Terminator    = '\a'
 )
 
 // Creates a new modal.
@@ -108,7 +108,8 @@ func WithForeground(fg func() string) Option {
 }
 
 // Sets the tea.Cmd to return when the dialog is
-// confirmed (when confirmKey) is pressed.
+// confirmed (when confirmKey) is pressed. By
+// default, the confirm command is nil.
 func WithConfirmCmd(cmd tea.Cmd) Option {
 	return func(m *Model) {
 		m.onConfirm = cmd
@@ -118,7 +119,8 @@ func WithConfirmCmd(cmd tea.Cmd) Option {
 // Sets the tea.Cmd to return when the dialog is
 // canceled (when cancelKey) is pressed. The dialog
 // will close itself automatically, but all other
-// behaviour is left to the user.
+// behaviour is left to the user. By default,
+// the cancel command is nil.
 func WithCancelCmd(cmd tea.Cmd) Option {
 	return func(m *Model) {
 		m.onCancel = cmd
@@ -189,7 +191,7 @@ func (m Model) foregroundBounds() (x, y, w, h int) {
 	fgWidth := lipgloss.Width(foreground)
 	fgHeight := lipgloss.Height(foreground)
 
-	bgGrid := ToTerminalCellGrid(m.background, containerWidth, containerHeight)
+	bgGrid := toTerminalCellGrid(m.background, containerWidth, containerHeight)
 	bgWidth := len(bgGrid[0])
 	bgHeight := len(bgGrid)
 
@@ -248,8 +250,8 @@ func (m Model) Composite() string {
 	fgWidth := lipgloss.Width(foreground)
 	fgHeight := lipgloss.Height(foreground)
 
-	bgGrid := ToTerminalCellGrid(m.background, containerWidth, containerHeight)
-	fgGrid := ToTerminalCellGrid(foreground, fgWidth, fgHeight)
+	bgGrid := toTerminalCellGrid(m.background, containerWidth, containerHeight)
+	fgGrid := toTerminalCellGrid(foreground, fgWidth, fgHeight)
 
 	bgWidth := len(bgGrid[0])
 	bgHeight := len(bgGrid)
@@ -332,7 +334,7 @@ func applyPosition(pos lipgloss.Position, bgDimension, fgDimension int) int {
 	return max(0, offset)
 }
 
-func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
+func toTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 	grid := make([][]TerminalCell, height)
 	for i := range grid {
 		grid[i] = make([]TerminalCell, width)
@@ -349,7 +351,7 @@ func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 	for i := 0; i < len(inputAsRunes); i++ {
 		currentRune := inputAsRunes[i]
 
-		if currentRune == NewlineCharacter {
+		if currentRune == newlineCharacter {
 			currentX = 0
 			currentY++
 			continue
@@ -358,7 +360,7 @@ func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 		// We only need to consider doing something
 		// if we encounter the start of an escape sequence. Otherwise,
 		// it's fine to just add the rune as-is.
-		if currentRune == EscapeCharacter {
+		if currentRune == escapeCharacter {
 			isAnsiCode := false
 			isOsc8Code := false
 
@@ -368,9 +370,9 @@ func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 			}
 
 			switch inputAsRunes[i+1] {
-			case AnsiCsiIntroducer:
+			case ansiCsiIntroducer:
 				isAnsiCode = true
-			case Osc8Introducer:
+			case osc8Introducer:
 				isOsc8Code = true
 			}
 
@@ -382,12 +384,12 @@ func ToTerminalCellGrid(input string, width int, height int) [][]TerminalCell {
 				for j := sequenceParamStart; j < len(inputAsRunes); j++ {
 					currentParam := inputAsRunes[j]
 
-					if isAnsiCode && currentParam == SgrTerminator {
+					if isAnsiCode && currentParam == sgrTerminator {
 						sequenceEndIndex = j
 						break
 					}
 
-					if isOsc8Code && currentParam == Osc8Terminator {
+					if isOsc8Code && currentParam == osc8Terminator {
 						sequenceEndIndex = j
 						break
 					}
